@@ -40,6 +40,7 @@ No modules.
 | [github_repository.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/repository) | resource |
 | [github_repository_ruleset.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/repository_ruleset) | resource |
 | [github_team_repository.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/team_repository) | resource |
+| [github_enterprise.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/data-sources/enterprise) | data source |
 | [github_organization.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/data-sources/organization) | data source |
 
 ## Inputs
