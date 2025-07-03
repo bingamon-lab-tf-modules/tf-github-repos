@@ -475,3 +475,82 @@ Examples:
     EOT
 }
 }
+
+# GitHub Pages configuration.
+# Validate build_type, cname, and source.
+# build_type can be one of: workflow, legacy
+# If build_type is legacy, source is required.
+# If build_type is workflow, source should not be provided.
+check "github_pages_configuration" {
+  assert {
+    condition = alltrue([
+      for repo in var.github_repositories :
+      repo.pages == null ? true : (
+        repo.pages.build_type != null &&
+        contains(["workflow", "legacy"], repo.pages.build_type) &&
+        (repo.pages.build_type == "legacy" ? (
+          repo.pages.source != null &&
+          repo.pages.source.branch != null &&
+          repo.pages.source.branch != "" &&
+          repo.pages.source.path != null &&
+          repo.pages.source.path != ""
+        ) : true) &&
+        (repo.pages.build_type == "workflow" ? repo.pages.source == null : true)
+      )
+    ])
+    error_message = <<EOT
+Invalid GitHub Pages configuration found in repository configurations.
+
+Repositories with invalid GitHub Pages settings: ${join(", ", [
+    for repo in var.github_repositories :
+    repo.name if repo.pages != null ? !(
+      repo.pages.build_type != null &&
+      contains(["workflow", "legacy"], repo.pages.build_type) &&
+      (
+        repo.pages.build_type == "legacy" ?
+        (
+          repo.pages.source != null &&
+          repo.pages.source.branch != null && repo.pages.source.branch != "" &&
+          repo.pages.source.path != null && repo.pages.source.path != ""
+        ) : true
+      ) &&
+      (
+        repo.pages.build_type == "workflow" ?
+        repo.pages.source == null : true
+      )
+    ) : false
+])}
+
+GitHub Pages configuration requirements:
+
+  - build_type: Must be one of "workflow", "legacy"
+
+  - For build_type "legacy":
+    * source is required
+    * source.branch must be a non-empty string
+    * source.path must be a non-empty string
+
+  - For build_type "workflow":
+    * source must not be provided (should be null)
+
+  - cname: Optional string for custom domain
+
+Examples:
+  # Workflow-based GitHub Pages (GitHub Actions)
+  pages = {
+    build_type = "workflow"
+    cname      = "example.com"  # optional
+  }
+
+  # Legacy GitHub Pages (from branch)
+  pages = {
+    build_type = "legacy"
+    cname      = "example.com"  # optional
+    source = {
+      branch = "main"
+      path   = "/"
+    }
+  }
+    EOT
+}
+}

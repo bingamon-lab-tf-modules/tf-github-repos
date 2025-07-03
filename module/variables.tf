@@ -181,12 +181,19 @@ variable "github_repositories" {
 
     # GitHub Pages configuration
     pages = optional(object({
-      source = object({
+
+      # GitHub Pages build type
+      build_type = string # workflow, legacy
+
+      # Optional CNAME for the GitHub Pages site
+      cname = optional(string)
+
+      # Legacy GitHub Pages configuration
+      source = optional(object({
         branch = string
         path   = string
-      })
-      build_type = string
-      cname      = string
+      }))
+
     }))
 
     # Security and Analysis configuration

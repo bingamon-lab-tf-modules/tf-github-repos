@@ -46,9 +46,13 @@ resource "github_repository" "this" {
   dynamic "pages" {
     for_each = each.value.pages == null ? [] : [each.value.pages]
     content {
-      source {
-        branch = pages.value.source.branch
-        path   = pages.value.source.path
+      # Source block is only included for legacy build type
+      dynamic "source" {
+        for_each = pages.value.build_type == "legacy" && pages.value.source != null ? [pages.value.source] : []
+        content {
+          branch = source.value.branch
+          path   = source.value.path
+        }
       }
       build_type = pages.value.build_type
       cname      = pages.value.cname
