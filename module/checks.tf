@@ -480,14 +480,14 @@ Examples:
 # Validate build_type, cname, and source.
 # build_type can be one of: workflow, legacy
 # If build_type is legacy, source is required.
+# If build_type is workflow, source should not be provided.
 check "github_pages_configuration" {
   assert {
     condition = alltrue([
       for repo in var.github_repositories :
       repo.pages == null ? true : (
-        # Validate build_type is one of: workflow, legacy
+        repo.pages.build_type != null &&
         contains(["workflow", "legacy"], repo.pages.build_type) &&
-        # If build_type is legacy, source is required
         (repo.pages.build_type == "legacy" ? (
           repo.pages.source != null &&
           repo.pages.source.branch != null &&
@@ -495,7 +495,6 @@ check "github_pages_configuration" {
           repo.pages.source.path != null &&
           repo.pages.source.path != ""
         ) : true) &&
-        # If build_type is workflow, source should not be provided
         (repo.pages.build_type == "workflow" ? repo.pages.source == null : true)
       )
     ])
@@ -504,17 +503,22 @@ Invalid GitHub Pages configuration found in repository configurations.
 
 Repositories with invalid GitHub Pages settings: ${join(", ", [
     for repo in var.github_repositories :
-    repo.name if repo.pages != null && !(
+    repo.name if repo.pages != null ? !(
+      repo.pages.build_type != null &&
       contains(["workflow", "legacy"], repo.pages.build_type) &&
-      (repo.pages.build_type == "legacy" ? (
-        repo.pages.source != null &&
-        repo.pages.source.branch != null &&
-        repo.pages.source.branch != "" &&
-        repo.pages.source.path != null &&
-        repo.pages.source.path != ""
-      ) : true) &&
-      (repo.pages.build_type == "workflow" ? repo.pages.source == null : true)
-    )
+      (
+        repo.pages.build_type == "legacy" ?
+        (
+          repo.pages.source != null &&
+          repo.pages.source.branch != null && repo.pages.source.branch != "" &&
+          repo.pages.source.path != null && repo.pages.source.path != ""
+        ) : true
+      ) &&
+      (
+        repo.pages.build_type == "workflow" ?
+        repo.pages.source == null : true
+      )
+    ) : false
 ])}
 
 GitHub Pages configuration requirements:
