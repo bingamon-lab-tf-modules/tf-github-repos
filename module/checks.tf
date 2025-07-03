@@ -504,16 +504,16 @@ Invalid GitHub Pages configuration found in repository configurations.
 
 Repositories with invalid GitHub Pages settings: ${join(", ", [
     for repo in var.github_repositories :
-    repo.name if repo.pages != null && (
-      !contains(["workflow", "legacy"], repo.pages.build_type) ||
-      (repo.pages.build_type == "legacy" && (
-        repo.pages.source == null ||
-        repo.pages.source.branch == null ||
-        repo.pages.source.branch == "" ||
-        repo.pages.source.path == null ||
-        repo.pages.source.path == ""
-      )) ||
-      (repo.pages.build_type == "workflow" && repo.pages.source != null)
+    repo.name if repo.pages != null && !(
+      contains(["workflow", "legacy"], repo.pages.build_type) &&
+      (repo.pages.build_type == "legacy" ? (
+        repo.pages.source != null &&
+        repo.pages.source.branch != null &&
+        repo.pages.source.branch != "" &&
+        repo.pages.source.path != null &&
+        repo.pages.source.path != ""
+      ) : true) &&
+      (repo.pages.build_type == "workflow" ? repo.pages.source == null : true)
     )
 ])}
 
