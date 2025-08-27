@@ -48,7 +48,7 @@ resource "github_repository_ruleset" "this" {
         do_not_enforce_on_create             = try(required_status_checks.value.do_not_enforce_on_create, null)
 
         dynamic "required_check" {
-          for_each = required_status_checks.value.required_check != null ? required_status_checks.value.required_check : []
+          for_each = required_status_checks.value.required_check
           content {
             context        = required_check.value.context
             integration_id = try(required_check.value.integration_id, null)
@@ -84,7 +84,7 @@ resource "github_repository_ruleset" "this" {
       for_each = each.value.ruleset.rules.required_code_scanning != null ? [each.value.ruleset.rules.required_code_scanning] : []
       content {
         dynamic "required_code_scanning_tool" {
-          for_each = required_code_scanning.value.required_code_scanning_tool != null ? required_code_scanning.value.required_code_scanning_tool : []
+          for_each = required_code_scanning.value.required_code_scanning_tool
           content {
             alerts_threshold          = required_code_scanning_tool.value.alerts_threshold
             security_alerts_threshold = required_code_scanning_tool.value.security_alerts_threshold
@@ -170,10 +170,10 @@ resource "github_repository_ruleset" "this" {
   # Workaround for GitHub provider issue with OrganizationAdmin actor_id
   # The provider reads back actor_id = 0 instead of 1 for OrganizationAdmin
   # causing perpetual drift. Ignore changes to bypass_actors to prevent this.
-  # Refer issue #2536
+  # Refer issue #2536 - Remove this workaround once the issue is fixed.
   lifecycle {
     ignore_changes = [
-      #bypass_actors
+      bypass_actors
     ]
   }
 
