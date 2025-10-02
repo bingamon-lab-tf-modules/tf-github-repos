@@ -363,6 +363,74 @@ Merge queue requirements:
   }
 }
 
+# Validate ruleset target pattern requirements
+check "ruleset_target_patterns" {
+  assert {
+    condition = alltrue(flatten([
+      for repo in var.github_repositories : [
+        for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
+        ruleset if(
+          # When target is 'branch', branch_name_pattern is required
+          (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
+          # When target is 'tag', tag_name_pattern is required
+          (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+        )
+      ]
+    ]))
+    error_message = <<EOT
+Invalid ruleset target pattern configurations.
+
+Ruleset target pattern requirements:
+  - When target is "branch", branch_name_pattern must be specified
+  - When target is "tag", tag_name_pattern must be specified
+
+Repositories with invalid ruleset target patterns: ${join(", ", flatten([
+    for repo in var.github_repositories : [
+      for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
+      "${repo.name}:${ruleset.name} (target: ${ruleset.target})" if !(
+        (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
+        (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+      )
+    ]
+]))}
+
+Examples of valid ruleset configurations:
+
+  # Branch-targeting ruleset (requires branch_name_pattern)
+  rulesets = [
+    {
+      name        = "main-branch-protection"
+      enforcement = "active"
+      target      = "branch"
+      rules = {
+        branch_name_pattern = {
+          operator = "starts_with"
+          pattern  = "main"
+        }
+        required_linear_history = true
+      }
+    }
+  ]
+
+  # Tag-targeting ruleset (requires tag_name_pattern)
+  rulesets = [
+    {
+      name        = "release-tag-protection"
+      enforcement = "active"
+      target      = "tag"
+      rules = {
+        tag_name_pattern = {
+          operator = "starts_with"
+          pattern  = "v"
+        }
+        deletion = false
+      }
+    }
+  ]
+    EOT
+}
+}
+
 # Validate ruleset pattern rules operators
 check "ruleset_pattern_operators" {
   assert {

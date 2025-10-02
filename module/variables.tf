@@ -160,7 +160,7 @@ variable "github_repositories" {
       bypass_actors = optional(list(object({
         actor_id    = number           # The ID of the actor that can bypass a ruleset. If actor_type is Integration, actor_id is a GitHub App ID
         actor_type  = string           # RepositoryRole, Team, Integration, OrganizationAdmin - The type of actor that can bypass a ruleset
-        bypass_mode = optional(string) # always, pull_request - When the specified actor can bypass the ruleset
+        bypass_mode = optional(string) # always, pull_request - When the specified actor can bypass a ruleset
       })))
 
       conditions = optional(object({
@@ -169,7 +169,7 @@ variable "github_repositories" {
           exclude = list(string) # Array of ref names or patterns to exclude. The condition will not pass if any of these patterns match
         })
       }))
-    })))
+    })), [])
 
     # NOTE:
     # This enables the following:
@@ -222,7 +222,6 @@ variable "github_repositories" {
     })))
 
   }))
-
   default = []
 
   validation {
