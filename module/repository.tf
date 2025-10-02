@@ -64,7 +64,8 @@ resource "github_repository" "this" {
     for_each = each.value.security_and_analysis == null ? [] : [each.value.security_and_analysis]
     content {
       dynamic "advanced_security" {
-        for_each = security_and_analysis.value.advanced_security == null ? [] : [security_and_analysis.value.advanced_security]
+        # Public repositories always have advanced security enabled and cannot be disabled.
+        for_each = (each.value.visibility != "public" && security_and_analysis.value.advanced_security != null) ? [security_and_analysis.value.advanced_security] : []
         content {
           status = advanced_security.value.status
         }
