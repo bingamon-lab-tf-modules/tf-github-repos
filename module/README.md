@@ -20,13 +20,13 @@ This module configures repositories for a GitHub Organization.
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
-| <a name="requirement_github"></a> [github](#requirement\_github) | 6.6.0 |
+| <a name="requirement_github"></a> [github](#requirement\_github) | 6.7.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_github"></a> [github](#provider\_github) | 6.6.0 |
+| <a name="provider_github"></a> [github](#provider\_github) | 6.7.0 |
 
 ## Modules
 
@@ -36,12 +36,12 @@ No modules.
 
 | Name | Type |
 |------|------|
-| [github_issue_label.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/issue_label) | resource |
-| [github_repository.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/repository) | resource |
-| [github_repository_ruleset.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/repository_ruleset) | resource |
-| [github_team_repository.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/resources/team_repository) | resource |
-| [github_enterprise.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/data-sources/enterprise) | data source |
-| [github_organization.this](https://registry.terraform.io/providers/integrations/github/6.6.0/docs/data-sources/organization) | data source |
+| [github_issue_label.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/resources/issue_label) | resource |
+| [github_repository.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/resources/repository) | resource |
+| [github_repository_ruleset.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/resources/repository_ruleset) | resource |
+| [github_team_repository.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/resources/team_repository) | resource |
+| [github_enterprise.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/data-sources/enterprise) | data source |
+| [github_organization.this](https://registry.terraform.io/providers/integrations/github/6.7.0/docs/data-sources/organization) | data source |
 
 ## Inputs
 
