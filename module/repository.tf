@@ -29,8 +29,7 @@ resource "github_repository" "this" {
 
   web_commit_signoff_required = each.value.web_commit_signoff_required
 
-  has_downloads = each.value.has_downloads
-  auto_init     = each.value.auto_init
+  auto_init = each.value.auto_init
 
   gitignore_template = each.value.gitignore_template
   license_template   = each.value.license_template

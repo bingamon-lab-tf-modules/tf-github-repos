@@ -9,7 +9,7 @@ check "team_permissions" {
   assert {
     condition = alltrue(flatten([
       for repo in var.github_repositories : [
-        for team in repo.teams :
+        for team in(repo.teams != null ? repo.teams : []) :
         contains(["pull", "triage", "push", "maintain", "admin"], team.permission)
       ]
     ]))
@@ -19,7 +19,7 @@ One or more team permissions are invalid in the repository configurations.
 Invalid permissions found in repositories: ${join(", ", [
     for repo in var.github_repositories :
     repo.name if length([
-      for team in repo.teams :
+      for team in(repo.teams != null ? repo.teams : []) :
       team.permission if !contains(["pull", "triage", "push", "maintain", "admin"], team.permission)
     ]) > 0
 ])}
@@ -238,7 +238,7 @@ check "rulesets" {
         ruleset if(
           ruleset.name == null || ruleset.name == "" ||
           ruleset.enforcement == null || !contains(["disabled", "active", "evaluate"], ruleset.enforcement) ||
-          ruleset.target == null || !contains(["branch", "tag"], ruleset.target) ||
+          ruleset.target == null || !contains(["branch", "tag", "push"], ruleset.target) ||
           ruleset.rules == null
         )
       ]) == 0
@@ -270,8 +270,11 @@ Repositories with invalid rulesets: ${join(", ", [
 Ruleset requirements:
   - name: Must be a non-empty string
   - enforcement: Must be one of "disabled", "active", "evaluate"
-  - target: Must be one of "branch", "tag"
+  - target: Must be one of "branch", "tag", "push"
   - rules: Must be defined (can be empty object)
+
+Note: the file_path_restriction, file_extension_restriction, max_file_path_length and
+max_file_size rules only apply to rulesets with the "push" target.
 
 Examples of valid rulesets:
   - { name = "main-protection", enforcement = "active", target = "branch", rules = { required_linear_history = true } }
@@ -287,17 +290,23 @@ check "ruleset_bypass_actors" {
       for repo in var.github_repositories : [
         for ruleset in(repo.rulesets != null ? repo.rulesets : []) : [
           for actor in(ruleset.bypass_actors != null ? ruleset.bypass_actors : []) :
-          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin"], actor.actor_type) &&
-          (actor.bypass_mode == null || contains(["always", "pull_request"], actor.bypass_mode)) &&
-          actor.actor_id != null &&
-          can(tonumber(actor.actor_id)) &&
+          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin", "DeployKey", "EnterpriseOwner", "User"], actor.actor_type) &&
+          contains(["always", "pull_request", "exempt"], actor.bypass_mode) &&
           (
-            # Validate actor_id based on actor_type
-            # Note: OrganizationAdmin supports both 0 and 1 due to GitHub API changes (see issue #2536)
-            (actor.actor_type == "OrganizationAdmin" && contains([0, 1], actor.actor_id)) ||
-            (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
-            (actor.actor_type == "Team" && actor.actor_id > 0) ||
-            (actor.actor_type == "Integration" && actor.actor_id > 0)
+            # OrganizationAdmin, EnterpriseOwner and DeployKey have no ID. The GitHub API
+            # ignores actor_id for these types and this module omits it, so no ID is required.
+            contains(["OrganizationAdmin", "EnterpriseOwner", "DeployKey"], actor.actor_type) ||
+            (
+              # Every other actor type must supply a numeric ID.
+              actor.actor_id != null &&
+              can(tonumber(actor.actor_id)) &&
+              (
+                (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
+                (actor.actor_type == "Team" && actor.actor_id > 0) ||
+                (actor.actor_type == "Integration" && actor.actor_id > 0) ||
+                (actor.actor_type == "User" && actor.actor_id > 0)
+              )
+            )
           )
         ]
       ]
@@ -309,16 +318,21 @@ Repositories with invalid bypass actors: ${join(", ", flatten([
     for repo in var.github_repositories : [
       for ruleset in(repo.rulesets != null ? repo.rulesets : []) : [
         for actor in(ruleset.bypass_actors != null ? ruleset.bypass_actors : []) :
-        "${repo.name}:${ruleset.name} (type: ${actor.actor_type}, id: ${actor.actor_id})" if !(
-          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin"], actor.actor_type) &&
-          (actor.bypass_mode == null || contains(["always", "pull_request"], actor.bypass_mode)) &&
-          actor.actor_id != null &&
-          can(tonumber(actor.actor_id)) &&
+        "${repo.name}:${ruleset.name} (type: ${actor.actor_type}, id: ${actor.actor_id == null ? "not set" : tostring(actor.actor_id)})" if !(
+          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin", "DeployKey", "EnterpriseOwner", "User"], actor.actor_type) &&
+          contains(["always", "pull_request", "exempt"], actor.bypass_mode) &&
           (
-            (actor.actor_type == "OrganizationAdmin" && contains([0, 1], actor.actor_id)) ||
-            (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
-            (actor.actor_type == "Team" && actor.actor_id > 0) ||
-            (actor.actor_type == "Integration" && actor.actor_id > 0)
+            contains(["OrganizationAdmin", "EnterpriseOwner", "DeployKey"], actor.actor_type) ||
+            (
+              actor.actor_id != null &&
+              can(tonumber(actor.actor_id)) &&
+              (
+                (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
+                (actor.actor_type == "Team" && actor.actor_id > 0) ||
+                (actor.actor_type == "Integration" && actor.actor_id > 0) ||
+                (actor.actor_type == "User" && actor.actor_id > 0)
+              )
+            )
           )
         )
       ]
@@ -326,17 +340,21 @@ Repositories with invalid bypass actors: ${join(", ", flatten([
 ]))}
 
 Bypass actor requirements:
-  - actor_type: Must be one of "RepositoryRole", "Team", "Integration", "OrganizationAdmin"
-  - bypass_mode: Must be one of "always", "pull_request" (or null)
-  - actor_id: Must be a valid number
+  - actor_type: Must be one of "RepositoryRole", "Team", "Integration", "OrganizationAdmin",
+                "DeployKey", "EnterpriseOwner", "User"
+  - bypass_mode: Must be one of "always", "pull_request", "exempt" (required)
+  - actor_id: Must be a valid number for actor types that have an ID
 
 Actor type ID mappings:
-  - OrganizationAdmin: Must be 0 or 1 (GitHub changed from 1 to 0 recently)
+  - OrganizationAdmin: No ID - leave actor_id unset (ignored by the GitHub API)
+  - EnterpriseOwner: No ID - leave actor_id unset (ignored by the GitHub API)
+  - DeployKey: No ID - leave actor_id unset (ignored by the GitHub API)
   - RepositoryRole maintain: Must be 2
   - RepositoryRole write: Must be 4
   - RepositoryRole admin: Must be 5
   - Team: Must be a positive number (team ID)
   - Integration: Must be a positive number (GitHub App ID)
+  - User: Must be a positive number (numeric GitHub user ID)
     EOT
 }
 }
@@ -366,53 +384,72 @@ Merge queue requirements:
 # Validate ruleset target pattern requirements
 check "ruleset_target_patterns" {
   assert {
-    condition = alltrue(flatten([
-      for repo in var.github_repositories : [
+    condition = alltrue([
+      for repo in var.github_repositories :
+      length([
         for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
-        ruleset if(
-          # When target is 'branch', branch_name_pattern is required
-          (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
-          # When target is 'tag', tag_name_pattern is required
-          (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+        ruleset if !(
+          # A name-pattern rule constrains which target it may be used with; the target does not
+          # require a name-pattern rule. Both rules are optional and enterprise-only, and the
+          # provider declares them mutually exclusive precisely because each is tied to one target.
+          (ruleset.rules.branch_name_pattern != null ? ruleset.target == "branch" : true) &&
+          (ruleset.rules.tag_name_pattern != null ? ruleset.target == "tag" : true)
         )
-      ]
-    ]))
+      ]) == 0
+    ])
     error_message = <<EOT
 Invalid ruleset target pattern configurations.
 
 Ruleset target pattern requirements:
-  - When target is "branch", branch_name_pattern must be specified
-  - When target is "tag", tag_name_pattern must be specified
+  - branch_name_pattern may only be used on a ruleset with target "branch"
+  - tag_name_pattern may only be used on a ruleset with target "tag"
 
 Repositories with invalid ruleset target patterns: ${join(", ", flatten([
     for repo in var.github_repositories : [
       for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
-      "${repo.name}:${ruleset.name} (target: ${ruleset.target})" if !(
-        (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
-        (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+      # NOTE: error_message is evaluated eagerly, even when the assertion passes, so names and
+      # target must be guarded - interpolating a null hard-fails the plan.
+      "${repo.name == null ? "(unnamed)" : tostring(repo.name)}:${ruleset.name == null ? "(unnamed)" : tostring(ruleset.name)} (target: ${ruleset.target == null ? "(none)" : tostring(ruleset.target)})" if !(
+        (ruleset.rules.branch_name_pattern != null ? ruleset.target == "branch" : true) &&
+        (ruleset.rules.tag_name_pattern != null ? ruleset.target == "tag" : true)
       )
     ]
 ]))}
 
+Both branch_name_pattern and tag_name_pattern are optional, enterprise-only rules. Neither is
+required by any target - a branch-targeting ruleset needs no branch_name_pattern. The provider
+declares the two rules mutually exclusive, so each may only appear on its matching target.
+
 Examples of valid ruleset configurations:
 
-  # Branch-targeting ruleset (requires branch_name_pattern)
+  # Branch-targeting ruleset with no name pattern at all
   rulesets = [
     {
       name        = "main-branch-protection"
       enforcement = "active"
       target      = "branch"
       rules = {
-        branch_name_pattern = {
-          operator = "starts_with"
-          pattern  = "main"
-        }
         required_linear_history = true
       }
     }
   ]
 
-  # Tag-targeting ruleset (requires tag_name_pattern)
+  # Branch-targeting ruleset that does use branch_name_pattern (enterprise only)
+  rulesets = [
+    {
+      name        = "release-branch-naming"
+      enforcement = "active"
+      target      = "branch"
+      rules = {
+        branch_name_pattern = {
+          operator = "starts_with"
+          pattern  = "release/"
+        }
+      }
+    }
+  ]
+
+  # Tag-targeting ruleset that does use tag_name_pattern (enterprise only)
   rulesets = [
     {
       name        = "release-tag-protection"
@@ -424,6 +461,49 @@ Examples of valid ruleset configurations:
           pattern  = "v"
         }
         deletion = false
+      }
+    }
+  ]
+    EOT
+}
+}
+
+# Validate that 'push' target rulesets only use push-compatible rules
+check "ruleset_push_rules" {
+  assert {
+    condition = length(local.ruleset_push_rule_violations) == 0
+    error_message = <<EOT
+Invalid rules for "push" target rulesets.
+
+Rules are target-specific. A ruleset with target "push" only supports:
+
+  - file_path_restriction
+  - file_extension_restriction
+  - max_file_path_length
+  - max_file_size
+
+Every other rule belongs to the "branch" and "tag" targets. Using one on a push ruleset is
+rejected by the GitHub API.
+
+Push rulesets using branch/tag-only rules: ${join("; ", [
+    for violation in local.ruleset_push_rule_violations :
+    "${violation.ruleset} (${join(", ", violation.rules)})"
+])}
+
+Example of a valid push ruleset:
+
+  rulesets = [
+    {
+      name        = "push-restrictions"
+      enforcement = "active"
+      target      = "push"
+      rules = {
+        max_file_size = {
+          max_file_size = 100
+        }
+        file_extension_restriction = {
+          restricted_file_extensions = ["*.exe"]
+        }
       }
     }
   ]

@@ -24,6 +24,7 @@ dpkg
 eeef
 elif
 esbenp
+fnmatch
 gitblame
 githubcli
 gruntfuggly

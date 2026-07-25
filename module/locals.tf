@@ -21,7 +21,6 @@ locals {
       allow_auto_merge            = repo.allow_auto_merge
       delete_branch_on_merge      = repo.delete_branch_on_merge
       web_commit_signoff_required = repo.web_commit_signoff_required
-      has_downloads               = repo.has_downloads
       auto_init                   = repo.auto_init
       gitignore_template          = repo.gitignore_template
       license_template            = repo.license_template
@@ -49,4 +48,44 @@ locals {
       merge_commit_message = repo.allow_merge_commit == true ? repo.merge_commit_message : null
     }
   }
+
+  # Rules are target-specific. A 'push' ruleset only supports file_path_restriction,
+  # file_extension_restriction, max_file_path_length and max_file_size; every other rule belongs
+  # to the 'branch' and 'tag' targets and is rejected by the GitHub API on a push ruleset.
+  #
+  # This yields one entry per offending push ruleset, naming the branch/tag-only rules it sets, so
+  # the check block below can both assert on it and report it without duplicating the rule list.
+  # Names are guarded here because a check block's error_message is evaluated eagerly and
+  # interpolating a null hard-fails the plan.
+  ruleset_push_rule_violations = [
+    for entry in flatten([
+      for repo in var.github_repositories : [
+        for ruleset in(repo.rulesets != null ? repo.rulesets : []) : {
+          ruleset = "${repo.name == null ? "(unnamed)" : tostring(repo.name)}:${ruleset.name == null ? "(unnamed)" : tostring(ruleset.name)}"
+          rules = [
+            for rule in [
+              { name = "creation", set = ruleset.rules.creation != null },
+              { name = "deletion", set = ruleset.rules.deletion != null },
+              { name = "non_fast_forward", set = ruleset.rules.non_fast_forward != null },
+              { name = "required_linear_history", set = ruleset.rules.required_linear_history != null },
+              { name = "required_signatures", set = ruleset.rules.required_signatures != null },
+              { name = "update", set = ruleset.rules.update != null },
+              { name = "update_allows_fetch_and_merge", set = ruleset.rules.update_allows_fetch_and_merge != null },
+              { name = "pull_request", set = ruleset.rules.pull_request != null },
+              { name = "copilot_code_review", set = ruleset.rules.copilot_code_review != null },
+              { name = "required_status_checks", set = ruleset.rules.required_status_checks != null },
+              { name = "required_deployments", set = ruleset.rules.required_deployments != null },
+              { name = "merge_queue", set = ruleset.rules.merge_queue != null },
+              { name = "required_code_scanning", set = ruleset.rules.required_code_scanning != null },
+              { name = "branch_name_pattern", set = ruleset.rules.branch_name_pattern != null },
+              { name = "tag_name_pattern", set = ruleset.rules.tag_name_pattern != null },
+              { name = "commit_author_email_pattern", set = ruleset.rules.commit_author_email_pattern != null },
+              { name = "commit_message_pattern", set = ruleset.rules.commit_message_pattern != null },
+              { name = "committer_email_pattern", set = ruleset.rules.committer_email_pattern != null },
+            ] : rule.name if rule.set
+          ]
+        } if ruleset.target == "push"
+      ]
+    ]) : entry if length(entry.rules) > 0
+  ]
 }
