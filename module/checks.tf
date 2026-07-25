@@ -389,10 +389,11 @@ check "ruleset_target_patterns" {
       length([
         for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
         ruleset if !(
-          # When target is 'branch', branch_name_pattern is required
-          (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
-          # When target is 'tag', tag_name_pattern is required
-          (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+          # A name-pattern rule constrains which target it may be used with; the target does not
+          # require a name-pattern rule. Both rules are optional and enterprise-only, and the
+          # provider declares them mutually exclusive precisely because each is tied to one target.
+          (ruleset.rules.branch_name_pattern != null ? ruleset.target == "branch" : true) &&
+          (ruleset.rules.tag_name_pattern != null ? ruleset.target == "tag" : true)
         )
       ]) == 0
     ])
@@ -400,38 +401,55 @@ check "ruleset_target_patterns" {
 Invalid ruleset target pattern configurations.
 
 Ruleset target pattern requirements:
-  - When target is "branch", branch_name_pattern must be specified
-  - When target is "tag", tag_name_pattern must be specified
+  - branch_name_pattern may only be used on a ruleset with target "branch"
+  - tag_name_pattern may only be used on a ruleset with target "tag"
 
 Repositories with invalid ruleset target patterns: ${join(", ", flatten([
     for repo in var.github_repositories : [
       for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
-      "${repo.name}:${ruleset.name} (target: ${ruleset.target})" if !(
-        (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
-        (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
+      # NOTE: error_message is evaluated eagerly, even when the assertion passes, so names and
+      # target must be guarded - interpolating a null hard-fails the plan.
+      "${repo.name == null ? "(unnamed)" : tostring(repo.name)}:${ruleset.name == null ? "(unnamed)" : tostring(ruleset.name)} (target: ${ruleset.target == null ? "(none)" : tostring(ruleset.target)})" if !(
+        (ruleset.rules.branch_name_pattern != null ? ruleset.target == "branch" : true) &&
+        (ruleset.rules.tag_name_pattern != null ? ruleset.target == "tag" : true)
       )
     ]
 ]))}
 
+Both branch_name_pattern and tag_name_pattern are optional, enterprise-only rules. Neither is
+required by any target - a branch-targeting ruleset needs no branch_name_pattern. The provider
+declares the two rules mutually exclusive, so each may only appear on its matching target.
+
 Examples of valid ruleset configurations:
 
-  # Branch-targeting ruleset (requires branch_name_pattern)
+  # Branch-targeting ruleset with no name pattern at all
   rulesets = [
     {
       name        = "main-branch-protection"
       enforcement = "active"
       target      = "branch"
       rules = {
-        branch_name_pattern = {
-          operator = "starts_with"
-          pattern  = "main"
-        }
         required_linear_history = true
       }
     }
   ]
 
-  # Tag-targeting ruleset (requires tag_name_pattern)
+  # Branch-targeting ruleset that does use branch_name_pattern (enterprise only)
+  rulesets = [
+    {
+      name        = "release-branch-naming"
+      enforcement = "active"
+      target      = "branch"
+      rules = {
+        branch_name_pattern = {
+          operator = "starts_with"
+          pattern  = "release/"
+        }
+      }
+    }
+  ]
+
+  # Tag-targeting ruleset that does use tag_name_pattern (enterprise only)
   rulesets = [
     {
       name        = "release-tag-protection"
@@ -443,6 +461,49 @@ Examples of valid ruleset configurations:
           pattern  = "v"
         }
         deletion = false
+      }
+    }
+  ]
+    EOT
+}
+}
+
+# Validate that 'push' target rulesets only use push-compatible rules
+check "ruleset_push_rules" {
+  assert {
+    condition = length(local.ruleset_push_rule_violations) == 0
+    error_message = <<EOT
+Invalid rules for "push" target rulesets.
+
+Rules are target-specific. A ruleset with target "push" only supports:
+
+  - file_path_restriction
+  - file_extension_restriction
+  - max_file_path_length
+  - max_file_size
+
+Every other rule belongs to the "branch" and "tag" targets. Using one on a push ruleset is
+rejected by the GitHub API.
+
+Push rulesets using branch/tag-only rules: ${join("; ", [
+    for violation in local.ruleset_push_rule_violations :
+    "${violation.ruleset} (${join(", ", violation.rules)})"
+])}
+
+Example of a valid push ruleset:
+
+  rulesets = [
+    {
+      name        = "push-restrictions"
+      enforcement = "active"
+      target      = "push"
+      rules = {
+        max_file_size = {
+          max_file_size = 100
+        }
+        file_extension_restriction = {
+          restricted_file_extensions = ["*.exe"]
+        }
       }
     }
   ]
