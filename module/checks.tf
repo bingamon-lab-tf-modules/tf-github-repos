@@ -9,7 +9,7 @@ check "team_permissions" {
   assert {
     condition = alltrue(flatten([
       for repo in var.github_repositories : [
-        for team in repo.teams :
+        for team in(repo.teams != null ? repo.teams : []) :
         contains(["pull", "triage", "push", "maintain", "admin"], team.permission)
       ]
     ]))
@@ -19,7 +19,7 @@ One or more team permissions are invalid in the repository configurations.
 Invalid permissions found in repositories: ${join(", ", [
     for repo in var.github_repositories :
     repo.name if length([
-      for team in repo.teams :
+      for team in(repo.teams != null ? repo.teams : []) :
       team.permission if !contains(["pull", "triage", "push", "maintain", "admin"], team.permission)
     ]) > 0
 ])}
@@ -384,17 +384,18 @@ Merge queue requirements:
 # Validate ruleset target pattern requirements
 check "ruleset_target_patterns" {
   assert {
-    condition = alltrue(flatten([
-      for repo in var.github_repositories : [
+    condition = alltrue([
+      for repo in var.github_repositories :
+      length([
         for ruleset in(repo.rulesets != null ? repo.rulesets : []) :
-        ruleset if(
+        ruleset if !(
           # When target is 'branch', branch_name_pattern is required
           (ruleset.target == "branch" ? ruleset.rules.branch_name_pattern != null : true) &&
           # When target is 'tag', tag_name_pattern is required
           (ruleset.target == "tag" ? ruleset.rules.tag_name_pattern != null : true)
         )
-      ]
-    ]))
+      ]) == 0
+    ])
     error_message = <<EOT
 Invalid ruleset target pattern configurations.
 
