@@ -42,7 +42,6 @@ variable "github_repositories" {
     delete_branch_on_merge      = optional(bool)
 
     web_commit_signoff_required = optional(bool)
-    has_downloads               = optional(bool)
     auto_init                   = optional(bool)
     gitignore_template          = optional(string)
     license_template            = optional(string)
@@ -62,7 +61,7 @@ variable "github_repositories" {
       # Required fields
       name        = string
       enforcement = string # disabled, active, evaluate (evaluate only supported for organization owners)
-      target      = string # branch, tag
+      target      = string # branch, tag, push
 
       # Rules block (required) - Rules within the ruleset
       rules = object({
@@ -82,6 +81,23 @@ variable "github_repositories" {
           require_last_push_approval        = optional(bool)   # Whether the most recent reviewable push must be approved by someone other than the person who pushed it
           required_approving_review_count   = optional(number) # The number of approving reviews that are required before a pull request can be merged
           required_review_thread_resolution = optional(bool)   # All conversations on code must be resolved before a pull request can be merged
+
+          # Require specific reviewers to approve pull requests targeting matching branches.
+          # NOTE: This feature is in beta upstream and subject to change.
+          required_reviewers = optional(list(object({
+            reviewer = object({
+              id   = number # The ID of the reviewer that must review (a Team ID)
+              type = string # Team - The type of reviewer, currently only Team is supported
+            })
+            file_patterns     = list(string) # File patterns (fnmatch syntax) that this reviewer must approve
+            minimum_approvals = number       # Minimum number of approvals required from this reviewer, 0 makes approval optional
+          })))
+        }))
+
+        # Copilot code review rules - Automatically request Copilot code review for new pull requests
+        copilot_code_review = optional(object({
+          review_on_push             = optional(bool) # Copilot automatically reviews each new push to the pull request
+          review_draft_pull_requests = optional(bool) # Copilot automatically reviews draft pull requests before they are marked as ready for review
         }))
 
         # Status check rules - Choose which status checks must pass before branches can be merged into a branch that matches this rule
@@ -117,6 +133,23 @@ variable "github_repositories" {
             security_alerts_threshold = string # none, critical, high_or_higher, medium_or_higher, all - The severity level at which code scanning results that raise security alerts block a reference update
             tool                      = string # The name of a code scanning tool
           }))
+        }))
+
+        # Push rules - These rules only apply to rulesets with the target 'push'
+        file_path_restriction = optional(object({
+          restricted_file_paths = list(string) # The file paths that are restricted from being pushed to the commit graph
+        }))
+
+        file_extension_restriction = optional(object({
+          restricted_file_extensions = list(string) # The file extensions that are restricted from being pushed to the commit graph
+        }))
+
+        max_file_path_length = optional(object({
+          max_file_path_length = number # The maximum number of characters allowed in file paths (1-32767)
+        }))
+
+        max_file_size = optional(object({
+          max_file_size = number # The maximum allowed size of a file in megabytes (MB), valid range is 1-100
         }))
 
         # Pattern rules (Enterprise only) - These rules only apply to repositories within an enterprise, cannot be applied to individual or regular organization repositories

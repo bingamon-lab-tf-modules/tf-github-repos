@@ -238,7 +238,7 @@ check "rulesets" {
         ruleset if(
           ruleset.name == null || ruleset.name == "" ||
           ruleset.enforcement == null || !contains(["disabled", "active", "evaluate"], ruleset.enforcement) ||
-          ruleset.target == null || !contains(["branch", "tag"], ruleset.target) ||
+          ruleset.target == null || !contains(["branch", "tag", "push"], ruleset.target) ||
           ruleset.rules == null
         )
       ]) == 0
@@ -270,8 +270,11 @@ Repositories with invalid rulesets: ${join(", ", [
 Ruleset requirements:
   - name: Must be a non-empty string
   - enforcement: Must be one of "disabled", "active", "evaluate"
-  - target: Must be one of "branch", "tag"
+  - target: Must be one of "branch", "tag", "push"
   - rules: Must be defined (can be empty object)
+
+Note: the file_path_restriction, file_extension_restriction, max_file_path_length and
+max_file_size rules only apply to rulesets with the "push" target.
 
 Examples of valid rulesets:
   - { name = "main-protection", enforcement = "active", target = "branch", rules = { required_linear_history = true } }

@@ -37,6 +37,29 @@ resource "github_repository_ruleset" "this" {
         require_last_push_approval        = try(pull_request.value.require_last_push_approval, null)
         required_approving_review_count   = try(pull_request.value.required_approving_review_count, null)
         required_review_thread_resolution = try(pull_request.value.required_review_thread_resolution, null)
+
+        # Required reviewers (beta)
+        dynamic "required_reviewers" {
+          for_each = pull_request.value.required_reviewers != null ? pull_request.value.required_reviewers : []
+          content {
+            file_patterns     = required_reviewers.value.file_patterns
+            minimum_approvals = required_reviewers.value.minimum_approvals
+
+            reviewer {
+              id   = required_reviewers.value.reviewer.id
+              type = required_reviewers.value.reviewer.type
+            }
+          }
+        }
+      }
+    }
+
+    # Copilot code review rules
+    dynamic "copilot_code_review" {
+      for_each = each.value.ruleset.rules.copilot_code_review != null ? [each.value.ruleset.rules.copilot_code_review] : []
+      content {
+        review_on_push             = try(copilot_code_review.value.review_on_push, null)
+        review_draft_pull_requests = try(copilot_code_review.value.review_draft_pull_requests, null)
       }
     }
 
@@ -91,6 +114,39 @@ resource "github_repository_ruleset" "this" {
             tool                      = required_code_scanning_tool.value.tool
           }
         }
+      }
+    }
+
+    # Push rules
+
+    # Only when the target is 'push'
+    dynamic "file_path_restriction" {
+      for_each = each.value.ruleset.rules.file_path_restriction != null ? [each.value.ruleset.rules.file_path_restriction] : []
+      content {
+        restricted_file_paths = file_path_restriction.value.restricted_file_paths
+      }
+    }
+
+    dynamic "file_extension_restriction" {
+      for_each = each.value.ruleset.rules.file_extension_restriction != null ? [each.value.ruleset.rules.file_extension_restriction] : []
+      content {
+        restricted_file_extensions = file_extension_restriction.value.restricted_file_extensions
+      }
+    }
+
+    dynamic "max_file_path_length" {
+      for_each = each.value.ruleset.rules.max_file_path_length != null ? [each.value.ruleset.rules.max_file_path_length] : []
+      iterator = rule
+      content {
+        max_file_path_length = rule.value.max_file_path_length
+      }
+    }
+
+    dynamic "max_file_size" {
+      for_each = each.value.ruleset.rules.max_file_size != null ? [each.value.ruleset.rules.max_file_size] : []
+      iterator = rule
+      content {
+        max_file_size = rule.value.max_file_size
       }
     }
 

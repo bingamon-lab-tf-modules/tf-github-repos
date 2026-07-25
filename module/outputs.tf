@@ -23,7 +23,6 @@ output "repositories" {
       has_issues             = v.has_issues
       has_projects           = v.has_projects
       has_wiki               = v.has_wiki
-      has_downloads          = v.has_downloads
       is_template            = v.is_template
       allow_merge_commit     = v.allow_merge_commit
       allow_squash_merge     = v.allow_squash_merge

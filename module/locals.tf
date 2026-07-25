@@ -21,7 +21,6 @@ locals {
       allow_auto_merge            = repo.allow_auto_merge
       delete_branch_on_merge      = repo.delete_branch_on_merge
       web_commit_signoff_required = repo.web_commit_signoff_required
-      has_downloads               = repo.has_downloads
       auto_init                   = repo.auto_init
       gitignore_template          = repo.gitignore_template
       license_template            = repo.license_template
