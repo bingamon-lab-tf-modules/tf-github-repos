@@ -158,9 +158,20 @@ variable "github_repositories" {
 
       # Optional fields
       bypass_actors = optional(list(object({
-        actor_id    = number           # The ID of the actor that can bypass a ruleset. If actor_type is Integration, actor_id is a GitHub App ID
-        actor_type  = string           # RepositoryRole, Team, Integration, OrganizationAdmin - The type of actor that can bypass a ruleset
-        bypass_mode = optional(string) # always, pull_request - When the specified actor can bypass a ruleset
+        # The ID of the actor that can bypass a ruleset.
+        # If actor_type is Integration, actor_id is a GitHub App ID.
+        # If actor_type is User, actor_id is the numeric GitHub user ID.
+        # OrganizationAdmin, EnterpriseOwner and DeployKey have no ID, so leave this
+        # unset for those types - the GitHub API ignores it.
+        actor_id = optional(number)
+
+        # RepositoryRole, Team, Integration, OrganizationAdmin, DeployKey, EnterpriseOwner, User
+        # The type of actor that can bypass a ruleset.
+        actor_type = string
+
+        # always, pull_request, exempt - When the specified actor can bypass a ruleset.
+        # Required by the GitHub provider.
+        bypass_mode = string
       })))
 
       conditions = optional(object({

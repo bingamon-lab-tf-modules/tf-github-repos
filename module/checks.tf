@@ -287,17 +287,23 @@ check "ruleset_bypass_actors" {
       for repo in var.github_repositories : [
         for ruleset in(repo.rulesets != null ? repo.rulesets : []) : [
           for actor in(ruleset.bypass_actors != null ? ruleset.bypass_actors : []) :
-          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin"], actor.actor_type) &&
-          (actor.bypass_mode == null || contains(["always", "pull_request"], actor.bypass_mode)) &&
-          actor.actor_id != null &&
-          can(tonumber(actor.actor_id)) &&
+          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin", "DeployKey", "EnterpriseOwner", "User"], actor.actor_type) &&
+          contains(["always", "pull_request", "exempt"], actor.bypass_mode) &&
           (
-            # Validate actor_id based on actor_type
-            # Note: OrganizationAdmin supports both 0 and 1 due to GitHub API changes (see issue #2536)
-            (actor.actor_type == "OrganizationAdmin" && contains([0, 1], actor.actor_id)) ||
-            (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
-            (actor.actor_type == "Team" && actor.actor_id > 0) ||
-            (actor.actor_type == "Integration" && actor.actor_id > 0)
+            # OrganizationAdmin, EnterpriseOwner and DeployKey have no ID. The GitHub API
+            # ignores actor_id for these types and this module omits it, so no ID is required.
+            contains(["OrganizationAdmin", "EnterpriseOwner", "DeployKey"], actor.actor_type) ||
+            (
+              # Every other actor type must supply a numeric ID.
+              actor.actor_id != null &&
+              can(tonumber(actor.actor_id)) &&
+              (
+                (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
+                (actor.actor_type == "Team" && actor.actor_id > 0) ||
+                (actor.actor_type == "Integration" && actor.actor_id > 0) ||
+                (actor.actor_type == "User" && actor.actor_id > 0)
+              )
+            )
           )
         ]
       ]
@@ -309,16 +315,21 @@ Repositories with invalid bypass actors: ${join(", ", flatten([
     for repo in var.github_repositories : [
       for ruleset in(repo.rulesets != null ? repo.rulesets : []) : [
         for actor in(ruleset.bypass_actors != null ? ruleset.bypass_actors : []) :
-        "${repo.name}:${ruleset.name} (type: ${actor.actor_type}, id: ${actor.actor_id})" if !(
-          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin"], actor.actor_type) &&
-          (actor.bypass_mode == null || contains(["always", "pull_request"], actor.bypass_mode)) &&
-          actor.actor_id != null &&
-          can(tonumber(actor.actor_id)) &&
+        "${repo.name}:${ruleset.name} (type: ${actor.actor_type}, id: ${actor.actor_id == null ? "not set" : tostring(actor.actor_id)})" if !(
+          contains(["RepositoryRole", "Team", "Integration", "OrganizationAdmin", "DeployKey", "EnterpriseOwner", "User"], actor.actor_type) &&
+          contains(["always", "pull_request", "exempt"], actor.bypass_mode) &&
           (
-            (actor.actor_type == "OrganizationAdmin" && contains([0, 1], actor.actor_id)) ||
-            (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
-            (actor.actor_type == "Team" && actor.actor_id > 0) ||
-            (actor.actor_type == "Integration" && actor.actor_id > 0)
+            contains(["OrganizationAdmin", "EnterpriseOwner", "DeployKey"], actor.actor_type) ||
+            (
+              actor.actor_id != null &&
+              can(tonumber(actor.actor_id)) &&
+              (
+                (actor.actor_type == "RepositoryRole" && contains([2, 4, 5], actor.actor_id)) ||
+                (actor.actor_type == "Team" && actor.actor_id > 0) ||
+                (actor.actor_type == "Integration" && actor.actor_id > 0) ||
+                (actor.actor_type == "User" && actor.actor_id > 0)
+              )
+            )
           )
         )
       ]
@@ -326,17 +337,21 @@ Repositories with invalid bypass actors: ${join(", ", flatten([
 ]))}
 
 Bypass actor requirements:
-  - actor_type: Must be one of "RepositoryRole", "Team", "Integration", "OrganizationAdmin"
-  - bypass_mode: Must be one of "always", "pull_request" (or null)
-  - actor_id: Must be a valid number
+  - actor_type: Must be one of "RepositoryRole", "Team", "Integration", "OrganizationAdmin",
+                "DeployKey", "EnterpriseOwner", "User"
+  - bypass_mode: Must be one of "always", "pull_request", "exempt" (required)
+  - actor_id: Must be a valid number for actor types that have an ID
 
 Actor type ID mappings:
-  - OrganizationAdmin: Must be 0 or 1 (GitHub changed from 1 to 0 recently)
+  - OrganizationAdmin: No ID - leave actor_id unset (ignored by the GitHub API)
+  - EnterpriseOwner: No ID - leave actor_id unset (ignored by the GitHub API)
+  - DeployKey: No ID - leave actor_id unset (ignored by the GitHub API)
   - RepositoryRole maintain: Must be 2
   - RepositoryRole write: Must be 4
   - RepositoryRole admin: Must be 5
   - Team: Must be a positive number (team ID)
   - Integration: Must be a positive number (GitHub App ID)
+  - User: Must be a positive number (numeric GitHub user ID)
     EOT
 }
 }
