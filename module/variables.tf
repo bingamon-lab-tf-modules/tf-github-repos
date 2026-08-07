@@ -1,17 +1,3 @@
-variable "github_enterprise_slug" {
-  type        = string
-  description = <<EOT
-  The slug of the GitHub Enterprise where resources will be created.
-
-  This is needed by the GitHub Enterprise Terraform provider.
-
-  This can be set via either;
-
-  - TF_VAR_github_enterprise_slug environment variable.
-  - github_enterprise_slug variable in the terraform.tfvars file.
-  EOT
-}
-
 variable "github_organization_name" {
   type        = string
   description = "Required. The name of the GitHub organization to create the team in."

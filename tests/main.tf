@@ -1,7 +1,6 @@
 module "test" {
   source = "../module"
 
-  github_enterprise_slug   = "acme-corp"
   github_organization_name = "acme-engineering"
 
   github_repositories = [
