@@ -85,7 +85,25 @@ resource "github_repository" "this" {
   }
 
   lifecycle {
+    # `template` records the repository a repo was CREATED FROM. GitHub exposes it
+    # as `template_repository` on reads, but its repository update API has no
+    # field for it - it is create-time-only and immutable thereafter.
+    #
+    # This module has no `template` input, so for any repo created from a template
+    # (or adopted by import) the provider reads the block back, finds nothing in
+    # configuration, and plans to remove it. The apply cannot actually remove it,
+    # so the identical diff returns on every subsequent plan.
+    #
+    # Observed in bingamon-lab-tf-modules, where the four repositories created
+    # from tf-template reported "4 to change" on every plan and were left
+    # unchanged by applying.
+    #
+    # Ignoring it is correct rather than a workaround - the attribute is not
+    # manageable, so there is no state this module could converge it to. Adding a
+    # `template` input would not fix it either: that would only take effect at
+    # creation and would still leave imported repos drifting forever.
     ignore_changes = [
+      template,
     ]
   }
 
