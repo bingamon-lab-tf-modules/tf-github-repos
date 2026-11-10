@@ -97,3 +97,8 @@ tftest
 secops
 opentofu
 codeql
+artifactory
+shfmt
+statix
+trivy
+yamllint
