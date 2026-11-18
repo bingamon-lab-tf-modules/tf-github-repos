@@ -21,6 +21,7 @@ variable "github_repositories" {
     allow_squash_merge          = optional(bool)
     allow_rebase_merge          = optional(bool)
     allow_auto_merge            = optional(bool)
+    allow_update_branch         = optional(bool)
     squash_merge_commit_title   = optional(string)
     squash_merge_commit_message = optional(string)
     merge_commit_title          = optional(string)

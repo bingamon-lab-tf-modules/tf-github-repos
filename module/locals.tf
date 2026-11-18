@@ -19,6 +19,7 @@ locals {
       is_template                 = repo.is_template
       allow_rebase_merge          = repo.allow_rebase_merge
       allow_auto_merge            = repo.allow_auto_merge
+      allow_update_branch         = repo.allow_update_branch
       delete_branch_on_merge      = repo.delete_branch_on_merge
       web_commit_signoff_required = repo.web_commit_signoff_required
       auto_init                   = repo.auto_init

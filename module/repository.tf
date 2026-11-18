@@ -17,6 +17,8 @@ resource "github_repository" "this" {
 
   allow_auto_merge = each.value.allow_auto_merge
 
+  allow_update_branch = each.value.allow_update_branch
+
   allow_squash_merge          = each.value.allow_squash_merge
   squash_merge_commit_title   = each.value.squash_merge_commit_title
   squash_merge_commit_message = each.value.squash_merge_commit_message

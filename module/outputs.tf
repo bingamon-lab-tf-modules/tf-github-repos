@@ -28,6 +28,7 @@ output "repositories" {
       allow_squash_merge     = v.allow_squash_merge
       allow_rebase_merge     = v.allow_rebase_merge
       allow_auto_merge       = v.allow_auto_merge
+      allow_update_branch    = v.allow_update_branch
       delete_branch_on_merge = v.delete_branch_on_merge
       topics                 = v.topics
     }
